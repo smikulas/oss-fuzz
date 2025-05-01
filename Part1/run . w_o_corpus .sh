@@ -1,4 +1,4 @@
-git clone --single-branch --branch CS412Lab2Part1 https://github.com/google/oss-fuzz && cd oss-fuzz
+git clone --single-branch --branch CS412Lab2Part1 https://github.com/smikulas/oss-fuzz.git && cd oss-fuzz
 python3 infra/helper.py build_image libpng
 python3 infra/helper.py build_fuzzers libpng
 mkdir build/out/corpus/
