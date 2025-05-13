@@ -1,0 +1,60 @@
+1. 
+Execute run.poc.sh. This will run the fuzzer with just the single example that will crash 
+immediately due to a floating point error.
+
+2. 
+This bug exists in version 1.5.4 of libpng. It is caused by certain values in the cHRM chunk, 
+which contains chromaticity data, and results in a divide by zero error. This bug was found by 
+fuzzing with a seed containing a cHRM chunk with arbitrary values. 
+
+ASan reports the crash in the following snippet:
+
+    if (y_red <= (1<<17) && y_green <= (1<<17) && y_blue <= (1<<17))
+    {
+        /* The y values are chromaticities: Y/X+Y+Z, the weights for the gray
+        * transformation are simply the normalized Y values for red, green and
+        * blue scaled by 32768.
+        */
+        png_uint_32 w = y_red + y_green + y_blue;
+
+        png_ptr->rgb_to_gray_red_coeff   = (png_uint_16)(((png_uint_32)y_red *
+        32768)/w);
+        png_ptr->rgb_to_gray_green_coeff = (png_uint_16)(((png_uint_32)y_green
+        * 32768)/w);
+        png_ptr->rgb_to_gray_blue_coeff  = (png_uint_16)(((png_uint_32)y_blue *
+        32768)/w);
+    }
+
+Since the problem in question is a divide by zero error, it is clear that the variable w is
+the culprit, as it is in the denominator, and that the bug is triggered by having red, green and
+blue chromaticities sum to zero. We can use pngcheck to inspect the crashing example to confirm this:
+
+$ pngcheck -v crash.png
+File: crash.png (93 bytes)
+  chunk IHDR at offset 0x0000c, length 13
+    1 x 1 image, 32-bit RGB+alpha, non-interlaced
+  chunk cHRM at offset 0x00025, length 32
+    White x = 0.64 y = 0,  Red x = 0 y = 0
+    Green x = 0 y = 0,  Blue x = 0 y = 0
+
+The obvious solution is to add a check to make sure that w is not zero:
+
+    if (w != 0) {
+        png_ptr->rgb_to_gray_red_coeff   = (png_uint_16)(((png_uint_32)y_red *
+        32768)/w);
+        png_ptr->rgb_to_gray_green_coeff = (png_uint_16)(((png_uint_32)y_green
+        * 32768)/w);
+        png_ptr->rgb_to_gray_blue_coeff  = (png_uint_16)(((png_uint_32)y_blue *
+        32768)/w);
+    }
+
+This is in fact, how the person who reported the bug patched it, however libpng 1.5.5 replaced
+this with some more advanced mathematical manipulation related to chromaticity, which is outside
+of this lab's scope.
+
+3.
+It is trivial to construct a PNG that triggers this bug and every PNG reader that uses libpng 
+compiled with support for cHRM chunks (which is true by default) would be affected. Although this
+bug can only be used for denial of service, it is still valuable for shotgun approach massive attacks
+due to its simplicity and the prevalence of the PNG format on the internet.
+
