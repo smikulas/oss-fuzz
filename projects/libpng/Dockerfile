@@ -20,5 +20,6 @@ RUN apt-get update && \
 
 RUN git clone --depth 1 https://github.com/madler/zlib.git
 RUN git clone --depth 1 -b CS412Lab2Part3 https://github.com/smikulas/libpng.git
+RUN git reset --hard 21c2cb88562bd5f28f7089b856c36d8b8e9ebe4e
 RUN cp libpng/contrib/oss-fuzz/build.sh $SRC
 WORKDIR libpng
