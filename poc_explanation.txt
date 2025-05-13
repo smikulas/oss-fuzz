@@ -1,8 +1,4 @@
-1. 
-Execute run.poc.sh. This will run the fuzzer with just the single example that will crash 
-immediately due to a floating point error.
-
-2. 
+# Root cause analysis of the crash 
 This bug exists in version 1.5.4 of libpng. It is caused by certain values in the cHRM chunk, 
 which contains chromaticity data, and results in a divide by zero error. This bug was found by 
 fuzzing with a seed containing a cHRM chunk with arbitrary values. 
@@ -37,7 +33,8 @@ File: crash.png (93 bytes)
     White x = 0.64 y = 0,  Red x = 0 y = 0
     Green x = 0 y = 0,  Blue x = 0 y = 0
 
-The obvious solution is to add a check to make sure that w is not zero:
+# Proposed fix
+The obvious solution is to add a check to make sure that w is not zero. This is in fact, how the person who reported the bug patched it.
 
     if (w != 0) {
         png_ptr->rgb_to_gray_red_coeff   = (png_uint_16)(((png_uint_32)y_red *
@@ -48,11 +45,7 @@ The obvious solution is to add a check to make sure that w is not zero:
         32768)/w);
     }
 
-This is in fact, how the person who reported the bug patched it, however libpng 1.5.5 replaced
-this with some more advanced mathematical manipulation related to chromaticity, which is outside
-of this lab's scope.
-
-3.
+# Analyze the severity of the crash
 It is trivial to construct a PNG that triggers this bug and every PNG reader that uses libpng 
 compiled with support for cHRM chunks (which is true by default) would be affected. Although this
 bug can only be used for denial of service, it is still valuable for shotgun approach massive attacks
